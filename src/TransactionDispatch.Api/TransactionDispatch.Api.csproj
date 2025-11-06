@@ -13,4 +13,8 @@
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.2" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\TransactionDispatch.Application\TransactionDispatch.Application.csproj" />
+  </ItemGroup>
+
 </Project>
