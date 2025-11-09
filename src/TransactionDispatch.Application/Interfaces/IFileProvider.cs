@@ -6,33 +6,36 @@ using System.Threading.Tasks;
 namespace TransactionDispatch.Application.Interfaces
 {
     /// <summary>
-    /// File I/O abstraction. Implementations must stream results and avoid materializing large lists.
+    /// File system abstraction used by the dispatch service.
+    /// Implementations should stream results and avoid materializing large lists in memory.
     /// </summary>
     public interface IFileProvider
     {
         /// <summary>
-        /// Stream file paths from the specified folder, optionally filtered by allowed extensions (without leading dot).
-        /// Use streaming enumeration (IAsyncEnumerable) to support very large folders.
+        /// Enumerate full file paths in the given folder, optionally filtered by allowed extensions.
+        /// Implementations should yield paths as they are discovered (IAsyncEnumerable) to support very large folders.
+        /// Extensions should be provided without a leading dot (e.g., "xml", "csv").
+        /// If allowedExtensions is null or empty, the provider may use a configured default list (injected options).
         /// </summary>
-        /// <param name="folderPath">Root folder to scan.</param>
-        /// <param name="allowedExtensions">Extensions without dot (e.g., "xml", "csv"). Null or empty => accept all.</param>
-        /// <param name="cancellationToken">Token to cancel enumeration.</param>
-        IAsyncEnumerable<string> EnumerateFilesAsync(string folderPath, IReadOnlyCollection<string>? allowedExtensions = null, CancellationToken cancellationToken = default);
+        IAsyncEnumerable<string> EnumerateFilesAsync(
+            string folderPath,
+            IReadOnlyCollection<string>? allowedExtensions = null,
+            CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Open a read-only stream for the given file path. Caller must dispose the returned stream.
-        /// Implementations should prefer async/streaming reads and avoid buffering entire file in memory.
+        /// Implementations should prefer async streaming reads and avoid loading whole file into memory.
         /// </summary>
         Task<Stream> OpenReadAsync(string path, CancellationToken cancellationToken = default);
 
         /// <summary>
-        /// Delete the specified file. Throw on unrecoverable errors so the caller can record and retry.
+        /// Delete the specified file. Throw on unrecoverable errors so the caller can handle retries.
         /// </summary>
         Task DeleteAsync(string path, CancellationToken cancellationToken = default);
 
         /// <summary>
-        /// Optional helper to check if the file is available for processing (not locked/incomplete).
-        /// Implementations may simply return true if no lock-checking is required.
+        /// Optional check whether the file is currently available for processing (not locked or being written to).
+        /// Implementations may return true if no locking checks are needed.
         /// </summary>
         Task<bool> IsFileAvailableAsync(string path, CancellationToken cancellationToken = default);
     }

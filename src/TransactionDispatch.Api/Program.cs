@@ -1,8 +1,17 @@
 using TransactionDispatch.Infrastructure;
+using TransactionDispatch.Application.Options;
+using TransactionDispatch.Application.Interfaces;
+using TransactionDispatch.Infrastructure.FileSystem;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddInfrastructure(builder.Configuration);
+
+// bind allowed file types
+builder.Services.Configure<AllowedFileTypesOptions>(builder.Configuration);
+
+builder.Services.AddSingleton<IFileProvider, FileSystemFileProvider>();
 
 builder.Services.AddControllers();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
