@@ -18,7 +18,7 @@ namespace TransactionDispatch.Domain.Models
             FileName = System.IO.Path.GetFileName(path) ?? string.Empty;
             Length = length;
             CreatedUtc = createdUtc ?? DateTime.UtcNow;
-            Outcome = ProcessingOutcome.Unknown;
+            Outcome = ProcessingOutcomeEnum.Unknown;
             Attempts = 0;
             ErrorMessage = null;
         }
@@ -33,21 +33,21 @@ namespace TransactionDispatch.Domain.Models
         public DateTime CreatedUtc { get; init; }
 
         // Processing state
-        public ProcessingOutcome Outcome { get; private set; }
+        public ProcessingOutcomeEnum Outcome { get; private set; }
         public int Attempts { get; private set; }
         public string? ErrorMessage { get; private set; }
 
         /// <summary>
         /// True when an outcome was recorded (success or failure).
         /// </summary>
-        public bool IsProcessed => Outcome != ProcessingOutcome.Unknown;
+        public bool IsProcessed => Outcome != ProcessingOutcomeEnum.Unknown;
 
         /// <summary>
         /// Mark the file as processed (success or failure). This also increments Attempts.
         /// </summary>
-        public void MarkProcessed(ProcessingOutcome outcome, string? errorMessage = null)
+        public void MarkProcessed(ProcessingOutcomeEnum outcome, string? errorMessage = null)
         {
-            if (outcome == ProcessingOutcome.Unknown)
+            if (outcome == ProcessingOutcomeEnum.Unknown)
                 throw new ArgumentException("Outcome must be Success or Failure.", nameof(outcome));
 
             Attempts++;

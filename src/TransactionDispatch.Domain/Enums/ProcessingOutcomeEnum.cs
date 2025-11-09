@@ -1,6 +1,6 @@
 ﻿namespace TransactionDispatch.Domain.Enums
 {
-    public enum ProcessingOutcome
+    public enum ProcessingOutcomeEnum
     {
         Unknown = 0,
         Success = 1,

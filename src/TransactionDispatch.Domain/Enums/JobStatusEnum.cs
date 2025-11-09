@@ -1,6 +1,6 @@
 ﻿namespace TransactionDispatch.Domain.Enums
 {
-    public enum JobStatus
+    public enum JobStatusEnum
     {
         Pending = 0,
         InProgress = 1,
