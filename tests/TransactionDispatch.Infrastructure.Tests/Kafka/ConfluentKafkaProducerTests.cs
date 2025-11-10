@@ -16,17 +16,16 @@ namespace TransactionDispatch.Infrastructure.Tests.Kafka
     {
         private static ConfluentKafkaProducer CreateWithMockProducer(out Mock<IProducer<string, byte[]>> producerMock, string topic = "t")
         {
-            var config = new ProducerConfig(); 
+            var config = new ProducerConfig();
             var options = new KafkaOptions { Topic = topic };
             var logger = new Mock<ILogger<ConfluentKafkaProducer>>().Object;
+
             var sut = new ConfluentKafkaProducer(config, options, logger);
 
-            // Create mock producer
             producerMock = new Mock<IProducer<string, byte[]>>();
 
-            // Inject the mock into the private field using reflection
-            var field = typeof(ConfluentKafkaProducer).GetField("_producer", BindingFlags.Instance | BindingFlags.NonPublic)
-                        ?? throw new InvalidOperationException("Private field '_producer' not found.");
+            var field = typeof(ConfluentKafkaProducer)
+                .GetField("_producer", BindingFlags.Instance | BindingFlags.NonPublic)!;
             field.SetValue(sut, producerMock.Object);
 
             return sut;
@@ -35,53 +34,55 @@ namespace TransactionDispatch.Infrastructure.Tests.Kafka
         [Fact]
         public async Task ProduceAsync_NullStream_ThrowsArgumentNullException()
         {
-            // Arrange
-            var sut = CreateWithMockProducer(out var _);
-
-            // Act & Assert
+            var sut = CreateWithMockProducer(out _);
             await Assert.ThrowsAsync<ArgumentNullException>(() => sut.ProduceAsync(null!, "k"));
         }
 
         [Fact]
         public async Task ProduceAsync_UnreadableStream_ThrowsArgumentException()
         {
-            var sut = CreateWithMockProducer(out var _);
-
-            // create non-readable stream
+            var sut = CreateWithMockProducer(out _);
             var stream = new NonReadableStream();
 
             await Assert.ThrowsAsync<ArgumentException>(() => sut.ProduceAsync(stream, "k"));
         }
 
         [Fact]
-        public async Task ProduceAsync_WhenDeliveryPersisted_CompletesSuccessfully()
+        public async Task ProduceAsync_DeliveryPersisted_CompletesSuccessfully()
         {
-            // Arrange
             var sut = CreateWithMockProducer(out var producerMock);
             var dr = new DeliveryResult<string, byte[]> { Status = PersistenceStatus.Persisted };
 
             producerMock
-                .Setup(p => p.ProduceAsync(It.IsAny<string>(), It.IsAny<Message<string, byte[]>>(), It.IsAny<CancellationToken>()))
+                .Setup(p => p.ProduceAsync(
+                    It.IsAny<string>(),
+                    It.IsAny<Message<string, byte[]>>(),
+                    It.IsAny<CancellationToken>()))
                 .ReturnsAsync(dr);
 
             using var ms = new MemoryStream(new byte[] { 1, 2, 3 });
 
-            // Act
             var ex = await Record.ExceptionAsync(() => sut.ProduceAsync(ms, "key"));
 
-            // Assert
             Assert.Null(ex);
-            producerMock.Verify(p => p.ProduceAsync("t", It.IsAny<Message<string, byte[]>>(), It.IsAny<CancellationToken>()), Times.Once);
+            producerMock.Verify(p => p.ProduceAsync(
+                It.Is<string>(t => t == "t"),
+                It.IsAny<Message<string, byte[]>>(),
+                It.IsAny<CancellationToken>()),
+                Times.Once);
         }
 
         [Fact]
-        public async Task ProduceAsync_WhenDeliveryNotPersisted_ThrowsException()
+        public async Task ProduceAsync_DeliveryNotPersisted_ThrowsException()
         {
             var sut = CreateWithMockProducer(out var producerMock);
             var dr = new DeliveryResult<string, byte[]> { Status = PersistenceStatus.NotPersisted };
 
             producerMock
-                .Setup(p => p.ProduceAsync(It.IsAny<string>(), It.IsAny<Message<string, byte[]>>(), It.IsAny<CancellationToken>()))
+                .Setup(p => p.ProduceAsync(
+                    It.IsAny<string>(),
+                    It.IsAny<Message<string, byte[]>>(),
+                    It.IsAny<CancellationToken>()))
                 .ReturnsAsync(dr);
 
             using var ms = new MemoryStream(new byte[] { 9 });
@@ -90,7 +91,7 @@ namespace TransactionDispatch.Infrastructure.Tests.Kafka
         }
 
         [Fact]
-        public void Dispose_CallsFlushAndDisposeOnProducer()
+        public void Dispose_CallsFlushAndDispose()
         {
             var sut = CreateWithMockProducer(out var producerMock);
 
@@ -103,7 +104,6 @@ namespace TransactionDispatch.Infrastructure.Tests.Kafka
             producerMock.Verify(p => p.Dispose(), Times.Once);
         }
 
-        // small helper stream that is not readable
         private class NonReadableStream : Stream
         {
             public override bool CanRead => false;
