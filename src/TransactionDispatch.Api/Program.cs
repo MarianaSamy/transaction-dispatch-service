@@ -1,31 +1,52 @@
-using TransactionDispatch.Infrastructure;
-using TransactionDispatch.Application.Options;
+using Microsoft.Extensions.Options;
 using TransactionDispatch.Application.Interfaces;
-using TransactionDispatch.Infrastructure.FileSystem;
+using TransactionDispatch.Application.Options;
+using TransactionDispatch.Application.Ports;
+using TransactionDispatch.Application.Services;
+using TransactionDispatch.Infrastructure;
+using TransactionDispatch.Infrastructure.Background;
+using TransactionDispatch.Infrastructure.IO;
+using TransactionDispatch.Infrastructure.Kafka;
+using TransactionDispatch.Infrastructure.Persistence;
+using TransactionDispatch.Infrastructure.Services;
+using Confluent.Kafka;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
+// ----------------------
+// Configuration & Options
+// ----------------------
+builder.Services.Configure<AllowedFileTypesOptions>(builder.Configuration);
+builder.Services.Configure<FileProviderOptions>(builder.Configuration.GetSection("FileProvider"));
+builder.Services.Configure<DispatchOptions>(builder.Configuration.GetSection("Dispatch"));
+builder.Services.Configure<KafkaOptions>(builder.Configuration.GetSection("Kafka"));
+
+// ----------------------
+// Infrastructure (DbContext, repositories, kafka, etc.)
+// ----------------------
 builder.Services.AddInfrastructure(builder.Configuration);
 
-// bind allowed file types
-builder.Services.Configure<AllowedFileTypesOptions>(builder.Configuration);
+// ----------------------
+// Application / Infrastructure services
+// ----------------------
+AddApplicationServices(builder.Services);
 
-builder.Services.AddSingleton<IFileProvider, FileSystemFileProvider>();
-
+// ----------------------
+// MVC / Swagger / Logging
+// ----------------------
 builder.Services.AddControllers();
-// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-// Add logging
 builder.Logging.ClearProviders();
 builder.Logging.AddConsole();
 builder.Logging.SetMinimumLevel(LogLevel.Information);
 
+// ----------------------
+// Build & run
+// ----------------------
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -33,9 +54,47 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
-
 app.UseAuthorization();
-
 app.MapControllers();
-
 app.Run();
+
+void AddApplicationServices(IServiceCollection services)
+{
+    // Application layer
+    services.AddScoped<IDispatchService, DispatchService>();
+
+    // File provider - scoped
+    services.AddScoped<IFileProvider, LocalFileProvider>();
+
+    // Background queue - singleton
+    services.AddSingleton<IBackgroundTaskQueue, BackgroundTaskQueue>();
+
+    // Job/File processors - scoped
+    services.AddScoped<IJobProcessor, JobProcessor>();
+    services.AddScoped<IFileProcessor, FileProcessor>();
+
+    // Kafka producer - singleton with Confluent config
+    services.AddSingleton<IKafkaProducer>(sp =>
+    {
+        var options = sp.GetRequiredService<IOptions<KafkaOptions>>().Value;
+        var logger = sp.GetRequiredService<ILogger<ConfluentKafkaProducer>>();
+
+        var config = new ProducerConfig
+        {
+            BootstrapServers = options.BootstrapServers,
+            Acks = Enum.TryParse<Acks>(options.Acks ?? "All", true, out var parsedAcks) ? parsedAcks : Acks.All,
+            EnableIdempotence = options.EnableIdempotence,
+            MessageTimeoutMs = options.MessageTimeoutMs,
+            CompressionType = Enum.TryParse<Confluent.Kafka.CompressionType>(options.CompressionType, true, out var cType)
+                ? cType
+                : Confluent.Kafka.CompressionType.Lz4,
+            BatchSize = options.BatchSize ?? 32768,
+            LingerMs = options.LingerMs ?? 5
+        };
+
+        return new ConfluentKafkaProducer(config, options, logger);
+    });
+
+    // Background worker (hosted service)
+    services.AddHostedService<DispatchBackgroundService>();
+}

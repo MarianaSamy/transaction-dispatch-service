@@ -4,14 +4,18 @@ using System.Threading.Tasks;
 
 namespace TransactionDispatch.Application.Interfaces
 {
+    /// <summary>
+    /// Simple abstraction to produce a file payload to Kafka.
+    /// Implementations should be resilient and honor cancellation tokens.
+    /// </summary>
     public interface IKafkaProducer
     {
         /// <summary>
-        /// Sends the contents of a stream (representing a single file or message) to a Kafka topic.
+        /// Produce the provided stream payload to Kafka. The implementation may read the stream fully.
         /// </summary>
-        /// <param name="stream">The stream containing the file or message data.</param>
-        /// <param name="fileName">The original file name or identifier for tracing.</param>
-        /// <param name="cancellationToken">Cancellation token for async control.</param>
-        Task ProduceAsync(Stream stream, string fileName, CancellationToken cancellationToken = default);
+        /// <param name="payloadStream">Stream positioned at start.</param>
+        /// <param name="key">Message key (e.g., filename)</param>
+        /// <param name="cancellationToken">Cancellation token</param>
+        Task ProduceAsync(Stream payloadStream, string key, CancellationToken cancellationToken = default);
     }
 }

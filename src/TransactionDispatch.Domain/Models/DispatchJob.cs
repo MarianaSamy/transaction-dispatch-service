@@ -29,7 +29,7 @@ namespace TransactionDispatch.Domain.Models
         public Guid JobId { get; private set; }
         public string FolderPath { get; private set; } = string.Empty;
         public DateTime StartedAt { get; private set; }
-        public DateTime? CompletedAt { get; private set; }
+        public DateTime? CompletedAt { get;  set; }
 
         public long TotalFiles { get; set; }
         public bool DeleteAfterSend { get; set; }
