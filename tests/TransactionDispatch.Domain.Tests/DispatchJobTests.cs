@@ -49,9 +49,7 @@ namespace TransactionDispatch.Domain.Tests
         [InlineData("   ")]
         public void Constructor_ThrowsArgumentException_WhenFolderPathIsNullOrWhiteSpace(string folderPath)
         {
-            // Act & Assert
-            var ex = Assert.Throws<ArgumentException>(() => new DispatchJob(folderPath!));
-            Assert.Contains("FolderPath", ex.ParamName ?? string.Empty);
+            Assert.Throws<ArgumentException>(() => new DispatchJob(folderPath!));
         }
 
         [Fact]

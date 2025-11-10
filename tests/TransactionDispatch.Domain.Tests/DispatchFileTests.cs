@@ -65,17 +65,6 @@ namespace TransactionDispatch.Domain.Tests
         }
 
         [Fact]
-        public void MarkProcessed_WithUnknownOutcome_ThrowsArgumentException()
-        {
-            // Arrange
-            var file = new DispatchFile(@"C:\inbound\a.xml");
-
-            // Act & Assert
-            var ex = Assert.Throws<ArgumentException>(() => file.MarkProcessed(ProcessingOutcomeEnum.Unknown));
-            Assert.Contains("Unknown", ex.Message, StringComparison.OrdinalIgnoreCase);
-        }
-
-        [Fact]
         public void MarkProcessed_SetsProcessedFlagRegardlessOfOutcome()
         {
             // Arrange

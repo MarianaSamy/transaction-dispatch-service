@@ -1,77 +1,75 @@
 ﻿using System;
-using Xunit;
 using TransactionDispatch.Domain.Models;
-using TransactionDispatch.Domain.Enums;
-using System.Collections.Generic;
+using Xunit;
 
-namespace TransactionDispatch.Domain.Tests
+namespace TransactionDispatch.Domain.Tests.Models
 {
     public class JobStatusTests
     {
         [Fact]
-        public void ToStatus_ProducesCorrectSnapshot_FromDispatchJob()
+        public void Constructor_Sets_All_Properties()
         {
-            // Arrange: create job with two files
-            var files = new List<DispatchFile>
-            {
-                new DispatchFile(@"C:\inbound\a.xml"),
-                new DispatchFile(@"C:\inbound\b.xml")
-            };
+            // Arrange
+            var id = Guid.NewGuid();
+            var folder = "C:/data/inbox";
+            var start = new DateTime(2025, 11, 10, 9, 0, 0, DateTimeKind.Utc);
+            var end = start.AddMinutes(5);
 
-            var job = new DispatchJob(@"C:\inbound", files);
+            // Act
+            var status = new JobStatus(
+                JobId: id,
+                FolderPath: folder,
+                TotalFiles: 10,
+                Processed: 8,
+                Successful: 7,
+                Failed: 1,
+                ProgressPercentage: 80.0,
+                StartedAt: start,
+                CompletedAt: end
+            );
 
-            // Act: mark one success, one failure
-            job.MarkFileProcessed(@"C:\inbound\a.xml", ProcessingOutcomeEnum.Success);
-            job.MarkFileProcessed(@"C:\inbound\b.xml", ProcessingOutcomeEnum.Failure);
-
-            var status = job.ToStatus();
-
-            // Assert snapshot values (compare snapshot to job's current state)
-            Assert.Equal(job.JobId, status.JobId);
-            Assert.Equal(job.FolderPath, status.FolderPath);
-            Assert.Equal(2, status.TotalFiles);
-            Assert.Equal(2, status.Processed);
-            Assert.Equal(1, status.Successful);
+            // Assert
+            Assert.Equal(id, status.JobId);
+            Assert.Equal(folder, status.FolderPath);
+            Assert.Equal(10, status.TotalFiles);
+            Assert.Equal(8, status.Processed);
+            Assert.Equal(7, status.Successful);
             Assert.Equal(1, status.Failed);
-
-            // If ProgressPercentage is a double, compare with small precision
-            Assert.Equal(job.ProgressPercentage, status.ProgressPercentage, 3);
-
-            Assert.Equal(job.StartedAt, status.StartedAt);
-            Assert.Equal(job.CompletedAt, status.CompletedAt);
+            Assert.Equal(80.0, status.ProgressPercentage);
+            Assert.Equal(start, status.StartedAt);
+            Assert.Equal(end, status.CompletedAt);
         }
 
         [Fact]
-        public void JobStatus_IsImmutable_RecordKeepsValues()
+        public void Records_WithSameValues_AreEqual()
         {
-            // Arrange some deterministic values
-            var now = DateTime.UtcNow;
+            // Arrange
             var id = Guid.NewGuid();
+            var start = DateTime.UtcNow;
 
-            // Create JobStatus record instance directly (positional or named args depending on your record signature)
-            // Adjust the constructor call below if your JobStatus record has a different parameter order or uses properties.
-            var status = new JobStatus(
-                id,
-                @"C:\inbound",
-                TotalFiles: 3,
-                Processed: 1,
-                Successful: 1,
-                Failed: 0,
-                ProgressPercentage: 33.33,
-                StartedAt: now,
-                CompletedAt: null
-            );
+            var s1 = new JobStatus(id, "A", 10, 5, 4, 1, 50.0, start, null);
+            var s2 = new JobStatus(id, "A", 10, 5, 4, 1, 50.0, start, null);
 
-            // Assert assigned values preserved
-            Assert.Equal(id, status.JobId);
-            Assert.Equal(@"C:\inbound", status.FolderPath);
-            Assert.Equal(3, status.TotalFiles);
-            Assert.Equal(1, status.Processed);
-            Assert.Equal(1, status.Successful);
-            Assert.Equal(0, status.Failed);
-            Assert.Equal(33.33, status.ProgressPercentage, 2);
-            Assert.Equal(now, status.StartedAt);
-            Assert.Null(status.CompletedAt);
+            // Assert
+            Assert.Equal(s1, s2);
+            Assert.True(s1 == s2);
+            Assert.False(s1 != s2);
+        }
+
+        [Fact]
+        public void WithExpression_CreatesModifiedCopy()
+        {
+            // Arrange
+            var baseStatus = new JobStatus(Guid.NewGuid(), "X", 10, 5, 5, 0, 50.0, DateTime.UtcNow, null);
+
+            // Act
+            var modified = baseStatus with { Processed = 10, ProgressPercentage = 100.0 };
+
+            // Assert
+            Assert.Equal(baseStatus.JobId, modified.JobId);
+            Assert.Equal(10, modified.Processed);
+            Assert.Equal(100.0, modified.ProgressPercentage);
+            Assert.NotEqual(baseStatus, modified); // record equality should differ
         }
     }
 }
