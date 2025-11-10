@@ -23,34 +23,43 @@ namespace TransactionDispatch.Domain.Tests
             Assert.Equal("orders-20251107.xml", file.FileName);
             Assert.Equal(length, file.Length);
             Assert.Equal(created, file.CreatedUtc);
-            Assert.Equal(ProcessingOutcome.Unknown, file.Outcome);
+            Assert.Equal(ProcessingOutcomeEnum.Unknown, file.Outcome);
             Assert.Equal(0, file.Attempts);
             Assert.False(file.IsProcessed);
         }
 
-        [Fact]
-        public void Constructor_InvalidPath_ThrowsArgumentException()
+        [Theory]
+        [InlineData(null)]
+        [InlineData("")]
+        [InlineData("   ")]
+        public void Constructor_InvalidPath_ThrowsArgumentException(string? path)
         {
-            Assert.Throws<ArgumentException>(() => new DispatchFile(null!));
-            Assert.Throws<ArgumentException>(() => new DispatchFile(string.Empty));
-            Assert.Throws<ArgumentException>(() => new DispatchFile("   "));
+            // Act & Assert
+            var ex = Assert.Throws<ArgumentException>(() => new DispatchFile(path!));
+            Assert.Contains("Path", ex.Message, StringComparison.OrdinalIgnoreCase);
         }
 
         [Fact]
         public void MarkProcessed_SetsOutcomeAndIncrementsAttempts_AndSetsErrorMessage()
         {
+            // Arrange
             var file = new DispatchFile(@"C:\inbound\a.xml");
 
-            file.MarkProcessed(ProcessingOutcome.Success);
+            // Act
+            file.MarkProcessed(ProcessingOutcomeEnum.Success);
 
+            // Assert first mark
             Assert.True(file.IsProcessed);
-            Assert.Equal(ProcessingOutcome.Success, file.Outcome);
+            Assert.Equal(ProcessingOutcomeEnum.Success, file.Outcome);
             Assert.Equal(1, file.Attempts);
             Assert.Null(file.ErrorMessage);
 
-            // mark again as failure (simulating another finalization) increments attempts
-            file.MarkProcessed(ProcessingOutcome.Failure, "send-failed");
-            Assert.Equal(ProcessingOutcome.Failure, file.Outcome);
+            // Act again to simulate retry
+            file.MarkProcessed(ProcessingOutcomeEnum.Failure, "send-failed");
+
+            // Assert second mark
+            Assert.True(file.IsProcessed);
+            Assert.Equal(ProcessingOutcomeEnum.Failure, file.Outcome);
             Assert.Equal(2, file.Attempts);
             Assert.Equal("send-failed", file.ErrorMessage);
         }
@@ -58,8 +67,28 @@ namespace TransactionDispatch.Domain.Tests
         [Fact]
         public void MarkProcessed_WithUnknownOutcome_ThrowsArgumentException()
         {
+            // Arrange
             var file = new DispatchFile(@"C:\inbound\a.xml");
-            Assert.Throws<ArgumentException>(() => file.MarkProcessed(ProcessingOutcome.Unknown));
+
+            // Act & Assert
+            var ex = Assert.Throws<ArgumentException>(() => file.MarkProcessed(ProcessingOutcomeEnum.Unknown));
+            Assert.Contains("Unknown", ex.Message, StringComparison.OrdinalIgnoreCase);
+        }
+
+        [Fact]
+        public void MarkProcessed_SetsProcessedFlagRegardlessOfOutcome()
+        {
+            // Arrange
+            var file = new DispatchFile(@"C:\inbound\b.xml");
+
+            // Act
+            file.MarkProcessed(ProcessingOutcomeEnum.Failure, "network error");
+
+            // Assert
+            Assert.True(file.IsProcessed);
+            Assert.Equal("network error", file.ErrorMessage);
+            Assert.Equal(ProcessingOutcomeEnum.Failure, file.Outcome);
+            Assert.Equal(1, file.Attempts);
         }
     }
 }

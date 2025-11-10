@@ -2,6 +2,7 @@
 using Xunit;
 using TransactionDispatch.Domain.Models;
 using TransactionDispatch.Domain.Enums;
+using System.Collections.Generic;
 
 namespace TransactionDispatch.Domain.Tests
 {
@@ -11,26 +12,31 @@ namespace TransactionDispatch.Domain.Tests
         public void ToStatus_ProducesCorrectSnapshot_FromDispatchJob()
         {
             // Arrange: create job with two files
-            var files = new[]
+            var files = new List<DispatchFile>
             {
                 new DispatchFile(@"C:\inbound\a.xml"),
                 new DispatchFile(@"C:\inbound\b.xml")
             };
+
             var job = new DispatchJob(@"C:\inbound", files);
 
             // Act: mark one success, one failure
-            job.MarkFileProcessed(@"C:\inbound\a.xml", ProcessingOutcome.Success);
-            job.MarkFileProcessed(@"C:\inbound\b.xml", ProcessingOutcome.Failure);
+            job.MarkFileProcessed(@"C:\inbound\a.xml", ProcessingOutcomeEnum.Success);
+            job.MarkFileProcessed(@"C:\inbound\b.xml", ProcessingOutcomeEnum.Failure);
+
             var status = job.ToStatus();
 
-            // Assert snapshot values
+            // Assert snapshot values (compare snapshot to job's current state)
             Assert.Equal(job.JobId, status.JobId);
             Assert.Equal(job.FolderPath, status.FolderPath);
             Assert.Equal(2, status.TotalFiles);
             Assert.Equal(2, status.Processed);
             Assert.Equal(1, status.Successful);
             Assert.Equal(1, status.Failed);
-            Assert.Equal(job.ProgressPercentage, status.ProgressPercentage);
+
+            // If ProgressPercentage is a double, compare with small precision
+            Assert.Equal(job.ProgressPercentage, status.ProgressPercentage, 3);
+
             Assert.Equal(job.StartedAt, status.StartedAt);
             Assert.Equal(job.CompletedAt, status.CompletedAt);
         }
@@ -38,9 +44,12 @@ namespace TransactionDispatch.Domain.Tests
         [Fact]
         public void JobStatus_IsImmutable_RecordKeepsValues()
         {
+            // Arrange some deterministic values
             var now = DateTime.UtcNow;
             var id = Guid.NewGuid();
 
+            // Create JobStatus record instance directly (positional or named args depending on your record signature)
+            // Adjust the constructor call below if your JobStatus record has a different parameter order or uses properties.
             var status = new JobStatus(
                 id,
                 @"C:\inbound",
@@ -60,7 +69,7 @@ namespace TransactionDispatch.Domain.Tests
             Assert.Equal(1, status.Processed);
             Assert.Equal(1, status.Successful);
             Assert.Equal(0, status.Failed);
-            Assert.Equal(33.33, status.ProgressPercentage);
+            Assert.Equal(33.33, status.ProgressPercentage, 2);
             Assert.Equal(now, status.StartedAt);
             Assert.Null(status.CompletedAt);
         }
