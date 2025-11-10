@@ -57,9 +57,7 @@ public class JobProcessor : IJobProcessor
     {
         try
         {
-            var success = await _fileProcessor.ProcessFileAsync(filePath, job.JobId, deleteAfterSend, ct).ConfigureAwait(false);
-            // fileProcessor should update job MarkProcessed internally OR return result for job update
-            // If necessary, call job.MarkProcessed(...) here and persist
+            var success = await _fileProcessor.ProcessFileAsync(filePath, job.JobId, deleteAfterSend, ct).ConfigureAwait(false);           
         }
         finally
         {
