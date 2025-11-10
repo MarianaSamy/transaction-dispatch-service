@@ -25,6 +25,9 @@ It ensures testability, maintainability, and configurability by isolating logic 
 4- API Layer
 Exposes REST endpoints to initiate new dispatch jobs and retrieve their current status.
 
+**The service relies on configuration values defined in appsettings.json, including database connection details, Kafka producer settings, and file type options.
+These parameters should be provided per environment.
+
 ** Future Plans
 If more time were available, the Application Layer would be extended to persist failed files for retry and to implement a per-file audit trail using bulk insert, enabling efficient recovery and detailed tracking of dispatch operations.
 
